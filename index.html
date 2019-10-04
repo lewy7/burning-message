@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+	<head>
+	<meta charset="utf-8" />
+	<title>message</title>
+	</head>
+
+  <script type="text/javascript"  charset="utf-8" src="sjclc.js"></script>
+  <script type="text/javascript">
+  	var auth,key,iv;
+  	var action;
+  	var auth_length = 8;
+  	var passport;
+  	var serverPage = "burning.php";
+  	var key_tail = "sha256oJCVpuo5!2awtf#\npkTd!5uLgs#qn\t@2#%^z9mKznt7aMeaSn6Vm40D&FN6gt%vZg0OcHYI5@0gvQcsnS^PaXADU#zQHD1za9";
+  	var iv_tail = "+:908*ZsHD5IyH#\re0b#PE59\vzNmAp&19bzW7lutPa%iIV^2p$yHx*VG6Wo0";
+  	var mid;
+  	var xmlHttp;
+  	var makeType = "text";
+  	var remainTime;
+  	function GetXmlHttpObject()
+		{
+			var xmlHttp;
+			try
+			{
+				xmlHttp = new XMLHttpRequest();
+			}
+			catch(e)
+			{
+				try{
+					xmlHttp = new ActiveXObject("Msxml2.XMLHTTP");
+				}
+				catch(e){
+					try{
+						xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
+					}
+					catch(e){
+						alert("ajax object create error");
+						return false;
+					}
+				}
+			}
+			return xmlHttp;
+		}
+
+  	function setKey(fun){
+  		var vcode = document.getElementById("vcode").value;
+  	  action = fun;
+  	  console.log("action : "+ action);
+  	  
+  	  document.getElementById("verify").style.display='none';
+  	  document.getElementById("screen").style.display='block';
+  	  if(action == "make"){
+  	  	document.getElementById("make").style.display='block';
+  	  	document.getElementById("text").style.display='block';
+  	  	document.getElementById("image").style.display='none';
+  	  	auth = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(Math.random()+ vcode + Math.random()+ key_tail+ Math.random())).substring(0,auth_length);
+  	  	mid = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(auth+key_tail+iv_tail));
+  	  	key = sjcl.hash.sha256.hash(auth+key_tail);
+  	  	iv = sjcl.bitArray.bitSlice(sjcl.hash.sha256.hash(auth+iv_tail),0,128);
+  	  	console.log("auth : "+auth);
+  			console.log("iv : "+ "["+sjcl.bitArray.bitLength(iv)+"] " +sjcl.codec.hex.fromBits(iv));
+  			console.log("key : "+ "["+sjcl.bitArray.bitLength(key)+"] " +sjcl.codec.hex.fromBits(key));
+  	  	return;
+  	  }
+  	  if(action == "get"){
+  	  	if(vcode.length<auth_length){
+  	  		alert("please input code");
+  	  		window.location.reload();
+  	  		return;
+  	  	}
+  	  	auth = document.getElementById("vcode").value.substring(0,auth_length);
+  	  	mid = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(auth+key_tail+iv_tail));
+  	  	key = sjcl.hash.sha256.hash(auth+key_tail);
+  	  	iv = sjcl.bitArray.bitSlice(sjcl.hash.sha256.hash(auth+iv_tail),0,128);
+  	  	console.log("auth : "+auth);
+  			console.log("iv : "+ "["+sjcl.bitArray.bitLength(iv)+"] " +sjcl.codec.hex.fromBits(iv));
+  			console.log("key : "+ "["+sjcl.bitArray.bitLength(key)+"] " +sjcl.codec.hex.fromBits(key));
+  	  	getData();
+  	  }
+  	  
+  	  
+  	}
+  	
+  	function countDown() {
+        if (remainTime >= 0) {
+          var hours = Math.floor(remainTime / 3600);
+          var minutes = Math.floor(remainTime % 3600 / 60);
+          var seconds = Math.floor(remainTime % 60);
+          document.getElementById("timer").innerHTML = hours+" : "+ minutes + " : " + seconds;
+          --remainTime;
+        } else{
+          document.getElementById("screen").innerHTML = "time out";
+        }
+    }
+  	
+  	function displayData(){
+  		if(xmlHttp.readyState==4 && xmlHttp.status==200)
+			{
+				console.log("raw : "+xmlHttp.responseText);
+				var json = eval('(' + xmlHttp.responseText + ')');
+				if(json.response != "success"){
+					alert(json.message);
+					window.location.reload();
+					return;
+				}
+				console.log("type : "+json.type);
+				var aes,de_result;
+	  		try {
+	  			aes = new sjcl.cipher.aes(key);
+	        de_result = sjcl.codec.utf8String.fromBits(sjcl.mode.cbc.decrypt(aes, sjcl.codec.base64url.toBits(json.data), iv));
+	      } catch (e) {
+	        console.error("aec-256-cbc decrypt exception"+e);
+	        return "????????";
+	    	}
+	    	remainTime = json.remain;
+	    	timer = setInterval("countDown()", 1000);
+	    	console.log("de_result : "+de_result);
+	    	if(json.type == 'text')
+					document.getElementById("screen").innerHTML += de_result;
+				if(json.type == 'image')
+					document.getElementById("screen").innerHTML += "<img src='"+de_result+"' />";
+					
+				
+			}
+  	}
+  	
+  	function getData(){
+  		xmlHttp = GetXmlHttpObject();
+  		;
+
+  		var url = serverPage+"?action=get"
+  												+"&mid="+ mid;
+  												+"&sid="+ new Date().getTime();
+  	  xmlHttp.onreadystatechange=displayData;
+			xmlHttp.open("GET",url,true);
+			xmlHttp.send(null);
+  	}
+  	
+  	function makeData(){
+  		var expired = document.getElementById("expired").value;
+  		var aes,en_result;
+  		
+
+  		if(makeType == "image"){
+  			var file = document.getElementById("image").files[0];
+  			var reader = new FileReader();
+					
+				reader.onload = function() {
+				    console.log("image data : "+reader.result);
+				    try {
+			  			aes = new sjcl.cipher.aes(key);
+			        en_result = sjcl.codec.base64url.fromBits(sjcl.mode.cbc.encrypt(aes, sjcl.codec.utf8String.toBits(reader.result), iv));
+			      } catch (e) {
+			        console.error("aec-256-cbc decrypt exception"+e);
+			        return "????????";
+			    	}
+			    	console.log("en_result : "+en_result);
+			    	
+			    	xmlHttp = GetXmlHttpObject();
+						
+						var url = serverPage+"?action=make&sid="+Math.random();
+						xmlHttp.onreadystatechange=displayCode;
+						xmlHttp.open("POST",url,true);
+						xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+						var data = "mid="+mid+"&expired="+expired+"&type="+makeType+"&data="+en_result;
+						console.log("post : "+data);
+						xmlHttp.send(data);
+				};
+				  
+				reader.readAsDataURL(file);
+  		}
+  		
+  		if(makeType == "text"){
+  			var content = document.getElementById("text").value;
+  			console.log("text data : "+content);
+  			try {
+	  			aes = new sjcl.cipher.aes(key);
+	        en_result = sjcl.codec.base64url.fromBits(sjcl.mode.cbc.encrypt(aes, sjcl.codec.utf8String.toBits(content), iv));
+	      } catch (e) {
+	        console.error("aec-256-cbc decrypt exception"+e);
+	        return "????????";
+	    	}
+	    	console.log("en_result : "+en_result);
+	    	
+	    	xmlHttp = GetXmlHttpObject();
+				
+				var url = serverPage+"?action=make&sid="+Math.random();
+				xmlHttp.onreadystatechange=displayCode;
+				xmlHttp.open("POST",url,true);
+				xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+				var data = "mid="+mid+"&expired="+expired+"&type="+makeType+"&data="+en_result;
+				console.log("post : "+data);
+				xmlHttp.send(data);
+  			
+  		}
+  		
+  		
+  		
+			
+  	}
+  	
+  	
+  	function displayCode(){
+  		if(xmlHttp.readyState==4 && xmlHttp.status==200)
+			{
+				document.getElementById("make").style.display='none';
+				console.log("raw : "+xmlHttp.responseText);
+				var json = eval('(' + xmlHttp.responseText + ')');
+				if(json.response != "success"){
+					alert(json.message);
+					return false;
+				}
+				remainTime = json.remain;
+	    	timer = setInterval("countDown()", 1000);
+				document.getElementById("screen").innerHTML += auth;
+			}
+  	}
+  	
+  	function switch_type(){
+  		if(document.getElementById("text").style.display=='block'){
+  			document.getElementById("text").style.display='none';
+  			document.getElementById("image").style.display='block';
+  			document.getElementById("type").innerHTML='image';
+  			makeType = "image";
+  		}else if(document.getElementById("image").style.display=='block'){
+  			document.getElementById("image").style.display='none';
+  			document.getElementById("text").style.display='block';
+  			document.getElementById("type").innerHTML='text';
+  			makeType = "text";
+  		}
+  	}
+  </script>
+  <style type="text/css">
+  	.main{margin:0 auto; width:99%;font-size: 38px;}
+  	.verify {text-align:center;padding-top:380px}
+    .input {font-size:1em;color: #333;border:1px solid #B3B4BD;height:1.5em;width:100%;text-align:center;}
+		.submit{font-size:1em;background-color: #8B0D00;color:#FFF;border: 1px solid #000;padding: 1px 5px 1px 5px;width:10em;}
+		.make {text-align:center;padding-top:380px;display:none;}
+		.sscreen {text-align:center;padding-top:380px;display:none;}
+		.textarea {font-size: 1em;width: 100%;color: #333;border: 1px solid #B3B4BD;padding: 0;margin: 0;height:10em;margin-top:2px;}
+		.timer {text-align:center;font-size: 0.5em}
+  </style>
+<body>
+	
+	<div class="main">
+		<div id="verify" class="verify">
+  	<p>VERIFY</p>
+		<input type="text" size="30" id="vcode" class="input"/><br/><br/>
+		<input type="button" value="make" class="submit" onclick="setKey('make')"/>
+		<input type="button" value="get" class="submit" onclick="setKey('get')"/>
+		</div>
+		<div id="screen" class="sscreen"><span id="timer" class="timer"></span><br/></div>
+
+		<div id="make" class="make">
+			
+			<p id="type" onclick="switch_type()">text</p>
+			<textarea  id="text" class="textarea"></textarea>
+			<input id="image" type="file" value="text" class="input" /><br/>
+			<input type="text" size="30" id="expired" class="input" value='5'/><br/>
+			<input type="button" value="submit" class="submit" onclick="makeData()"/>
+		</div>
+		
+	</div>
+	
+	
+</body>
+</html>
