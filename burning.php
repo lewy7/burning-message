@@ -39,7 +39,8 @@ if ($dir = opendir($data_dir)) {
 }
 if($action == 'get' && $mid == $fmid){
 	$remain = $fdate+$fexipired*60 - $now;
-	die('{"response":"success","type":"'.$ftype.'","remain":"'.$remain.'","data":"'.file_get_contents($data_dir.$file).'"}');	
+	die('{"response":"success","type":"'.$ftype.'","remain":"'.$remain.'","data":"'.file_get_contents($data_dir.$file).'"}');
+	unlink($data_dir.$file);
 }
 if($action == 'get' && $mid != $fmid){
 	die('{"response":"failure","message":"no data found"}');	
