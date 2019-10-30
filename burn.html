@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -11,16 +11,8 @@
   var xmlHttp;
   var auth,key,iv,mid;
   var remainTime;
-  var init=true;
-  auth = location.search.substring(1);
-  console.log("auth" + auth);
-  
-  mid = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(auth+key_tail+iv_tail));
-  key = sjcl.hash.sha256.hash(auth+key_tail);
-  iv = sjcl.bitArray.bitSlice(sjcl.hash.sha256.hash(auth+iv_tail),0,128);
-  console.log("mid : "+mid);
-  console.log("iv : "+ "["+sjcl.bitArray.bitLength(iv)+"] " +sjcl.codec.hex.fromBits(iv));
-  console.log("key : "+ "["+sjcl.bitArray.bitLength(key)+"] " +sjcl.codec.hex.fromBits(key));
+  var init = true;
+
   
   
   function GetXmlHttpObject()
@@ -60,6 +52,8 @@
     }
   
   function displayData(){
+  		document.getElementById("timer").style.display='block';
+  		document.getElementById("verify").style.display='none';
   		if(xmlHttp.readyState==4 && xmlHttp.status==200)
 			{
 				console.log("raw : "+xmlHttp.responseText);
@@ -92,33 +86,52 @@
   	}
   
   
-  function load(){
-	if(init){
-  		init = false;	
-  	}else{
-  		return;	
-  	}
+  function get(){
+
+  	vcode = document.getElementById("vcode").value;
+  	auth = location.search.substring(1);
+  	console.log("auth" + auth);
+  
+  	vc = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(vcode+iv_tail)).substring(0,4);
+  	mid = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(auth+key_tail+iv_tail));
+  	key = sjcl.hash.sha256.hash(auth+key_tail);
+  	iv = sjcl.bitArray.bitSlice(sjcl.hash.sha256.hash(auth+iv_tail),0,128);
+  	console.log("vc : "+vc);
+  	console.log("mid : "+mid);
+  	console.log("iv : "+ "["+sjcl.bitArray.bitLength(iv)+"] " +sjcl.codec.hex.fromBits(iv));
+  	console.log("key : "+ "["+sjcl.bitArray.bitLength(key)+"] " +sjcl.codec.hex.fromBits(key));
+
   	xmlHttp = GetXmlHttpObject();
   	var url = serverPage+"?action=get"
-  												+"&mid="+ mid;
+  												+"&mid="+ mid
+  												+"&vc="+ vc
   												+"&sid="+ Math.random();
   	  xmlHttp.onreadystatechange=displayData;
 			xmlHttp.open("GET",url,true);
 			xmlHttp.send(null);
   }
-  
+
 	</script>
   <style type="text/css">
-	html,body{height:100%;}
+  html,body{height:100%;}
 	.main {margin:0 auto; width:99%;height:100%;font-size: 38px;text-align:center;}
 	.main p{text-align:left;}
-	.timer {font-size: 0.5em;color: #333;}
+	.timer {font-size: 0.5em;color: #333;display:none;}
+	.verify {text-align:center;padding-top:320px}
+  .input {font-size:1em;color: #333;border:1px solid #B3B4BD;height:1.5em;width:100%;text-align:center;}
+  .submit{font-size:1em;background-color: #8B0D00;color:#FFF;border: 1px solid #000;padding: 1px 5px 1px 5px;width:10em;}
+		
 	</style>
 </head>
 <body>
 
-<div class="main" id="main" onclick="load()">
+<div class="main" id="main">
 	<span id="timer" class="timer"></span><br/>
+	<div id="verify" class="verify">
+  	<p style="text-align:center;">VERIFY</p>
+		<input type="text" size="30" id="vcode" class="input"/><br/><br/>
+		<input type="button" value="GET" class="submit" onclick="get()"/>
+	</div>
 </div>
 
 
