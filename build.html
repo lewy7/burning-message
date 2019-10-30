@@ -15,23 +15,29 @@
 	  var makeType = "text";
 	  var remainTime;
 	  var auth_length = 8;
+	  var vcode;
+	  var vc;
 	  
 	function login()
 	{
 		vcode = document.getElementById("vcode").value
 		if(vcode.length != 5){
 			document.getElementById("verify").innerHTML = "<p>ERROR</p>";
-			return;
+			vcode.substring(0,4);
+			//return;
 		}
+		
 		document.getElementById("verify").style.display='none';
 		document.getElementById("build").style.display='block';
 		document.getElementById("image").style.display='none';
 		document.getElementById("text").style.display='block';
 		
+		vc = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(vcode+iv_tail)).substring(0,4);
 		auth = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(Math.random()+ vcode + Math.random()+ key_tail+ Math.random())).substring(0,auth_length);
   	mid = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(auth+key_tail+iv_tail));
   	key = sjcl.hash.sha256.hash(auth+key_tail);
   	iv = sjcl.bitArray.bitSlice(sjcl.hash.sha256.hash(auth+iv_tail),0,128);
+  	console.log("vc : "+vc);
   	console.log("auth : "+auth);
     console.log("iv : "+ "["+sjcl.bitArray.bitLength(iv)+"] " +sjcl.codec.hex.fromBits(iv));
     console.log("key : "+ "["+sjcl.bitArray.bitLength(key)+"] " +sjcl.codec.hex.fromBits(key));
@@ -102,7 +108,7 @@
 						xmlHttp.onreadystatechange=displayCode;
 						xmlHttp.open("POST",url,true);
 						xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-						var data = "mid="+mid+"&expired="+expired+"&type="+makeType+"&data="+en_result;
+						var data = "vc="+vc+"&mid="+mid+"&expired="+expired+"&type="+makeType+"&data="+en_result;
 						console.log("post : "+data);
 						xmlHttp.send(data);
 				};
@@ -128,7 +134,7 @@
 				xmlHttp.onreadystatechange=displayCode;
 				xmlHttp.open("POST",url,true);
 				xmlHttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-				var data = "mid="+mid+"&expired="+expired+"&type="+makeType+"&data="+en_result;
+				var data = "vc="+vc+"&mid="+mid+"&expired="+expired+"&type="+makeType+"&data="+en_result;
 				console.log("post : "+data);
 				xmlHttp.send(data);
   			
@@ -164,14 +170,18 @@
 				}
 				remainTime = json.remain;
 	    	timer = setInterval("countDown()", 1000);
-				document.getElementById("screen").innerHTML += auth+"<br/><br/>";
+				document.getElementById("screen").innerHTML += vcode+"<br/><br/>";
 				document.getElementById("screen").innerHTML += location.href.replace("build","burn")+"?"+auth+"<br/><br/>";
 				
 				document.getElementById("screen").innerHTML += "<a target='_blank' href='"+location.href.replace("build","burn")+"?"+auth+"'>don't click</a>";
 
 			}
   	}
-  	
+  function randCode(){
+  		
+  		var r = sjcl.codec.base64url.fromBits(sjcl.hash.sha256.hash(Math.random()+new Date().getTime()));
+  		document.getElementById("vcode").value=r.substring(0,4);
+  }
   </script>
   
   
@@ -189,9 +199,9 @@
 	
 	<div class="main">
 		<div id="verify" class="verify">
-  	<p>VERIFY</p>
+  	<p  onclick="randCode()">VERIFY</p>
 		<input type="text" size="30" id="vcode" class="input"/><br/><br/>
-		<input type="button" value="login" class="submit" onclick="login()"/>
+		<input type="button" value="build" class="submit" onclick="login()"/>
 		</div>
 		
 		<div id="build" class="build">
