@@ -10,6 +10,7 @@ if(!is_dir($data_dir)){
 //mid+date+exipired
 $now = time();
 $count=0;
+$vc = urlencode($_POST['vc']);
 $mid = urlencode($_POST['mid']);
 $expired = floor(urlencode($_POST['expired']));
 $type = urlencode($_POST['type']);
@@ -43,7 +44,7 @@ if($expired > 1440){
 
 
 	
-	$filename = $mid.'.'.$now.'.'.$expired.'.'.$type ;
+	$filename = $vc.'.'.$mid.'.'.$now.'.'.$expired.'.'.$type ;
 	$fp = fopen($data_dir.$filename,"w");
 	fwrite($fp,$_POST['data']);
 	fclose($fp);
